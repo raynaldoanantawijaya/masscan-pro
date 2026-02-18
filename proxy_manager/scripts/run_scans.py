@@ -18,8 +18,10 @@ RESULTS_DIR = os.path.join(PACKAGE_DIR, "results")
 CONFIGS_DIR = os.path.join(PACKAGE_DIR, "configs")
 RANGES_DIR = os.path.join(PACKAGE_DIR, "ranges")
 
-# Ensure logs exist
+# Ensure logs and results directories exist
 os.makedirs(LOGS_DIR, exist_ok=True)
+os.makedirs(RESULTS_DIR, exist_ok=True)
+os.makedirs(CONFIGS_DIR, exist_ok=True)
 
 # Schedule (Start Hour, End Hour)
 ISP_SCHEDULE = {
