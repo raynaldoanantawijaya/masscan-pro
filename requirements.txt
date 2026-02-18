@@ -6,3 +6,5 @@ maxminddb-geolite2
 maxminddb
 geoip2
 colorama
+PyYAML
+pydantic
