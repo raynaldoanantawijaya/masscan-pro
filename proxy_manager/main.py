@@ -181,8 +181,22 @@ def main():
             
         targets = []
         with open(args.import_file, 'r') as f:
-            targets = [line.strip() for line in f if line.strip()]
-            
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # Handle Masscan format: "open tcp 8080 1.2.3.4 ..."
+                if line.startswith("open tcp"):
+                    parts = line.split()
+                    if len(parts) >= 4:
+                        port = int(parts[2])
+                        ip = parts[3]
+                        targets.append(f"{ip}:{port}")
+                # Handle simple IP:Port format
+                elif ":" in line:
+                    targets.append(line)
+        
         asyncio.run(run_pipeline(targets, skip_scan=True))
 
     else:
