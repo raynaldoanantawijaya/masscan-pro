@@ -23,7 +23,7 @@ def analyze_proxies():
         print(f"   - {row[0].upper():<10}: {row[1]}")
 
     print("\n🔹 **SUMMARY BY SPEED (Pools):**")
-    cursor.execute("SELECT pool, COUNT(*) FROM pool_assignments GROUP BY pool")
+    cursor.execute("SELECT pool_name, COUNT(*) FROM pool_assignments GROUP BY pool_name")
     for row in cursor.fetchall():
         print(f"   - {row[0]:<10}: {row[1]}")
 
