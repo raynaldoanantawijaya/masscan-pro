@@ -1,0 +1,25 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+build/
+dist/
+*.spec
+*.egg-info/
+.eggs/
+# Logs
+logs/
+*.log
+# Results - optionally ignore large scan results
+# results/
+# Database - keeping it for now as user might want the data
+# data/proxies.db
+# IDK if user wants to push binaries, but typically ignore them
+# masscan.exe
+# masscan/ 
+# VSCode
+.vscode/

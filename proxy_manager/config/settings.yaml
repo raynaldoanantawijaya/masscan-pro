@@ -1,0 +1,19 @@
+database:
+  type: sqlite
+  path: "data/proxies.db"
+
+scanning:
+  masscan_bin: "masscan.exe"  # Assumes masscan is in PATH or current dir
+  rate: 1000
+  interface: "Ethernet" # Adjust based on user's network interface
+  default_ports: "80,8080,3128,8000,1080,8888,9999"
+
+verification:
+  timeout: 5
+  judges:
+    - "http://httpbin.org/ip"
+    - "https://api.ipify.org?format=json"
+  max_concurrent: 100
+
+rotation:
+  strategy: "random" # or "round_robin", "sticky"
