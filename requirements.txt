@@ -1,0 +1,8 @@
+aiohttp
+aiohttp-socks
+aiosqlite
+requests
+maxminddb-geolite2
+maxminddb
+geoip2
+colorama
