@@ -38,12 +38,17 @@ async def check_proxy(proxy_url):
         async with aiohttp.ClientSession() as session:
             async with session.get("http://httpbin.org/ip", proxy=proxy_url, timeout=5) as resp:
                 if resp.status == 200:
-                    data = await resp.json()
-                    latency = int((time.time() - start) * 1000)
-                    print(f"✅ ACTIVE: {proxy_url:<30} | {latency}ms | IP: {data['origin']}")
-                    return True
+                    text = await resp.text()
+                    try:
+                        data = await resp.json()
+                        latency = int((time.time() - start) * 1000)
+                        print(f"✅ ACTIVE: {proxy_url:<30} | {latency}ms | IP: {data['origin']}")
+                        return True
+                    except Exception as e:
+                         print(f"⚠️  JSON ERROR: {proxy_url:<30} | Raw: {text[:50]}...")
+                         return False
                 else:
-                    print(f"⚠️  ERROR : {proxy_url:<30} | HTTP {resp.status}")
+                    print(f"⚠  HTTP ERROR : {proxy_url:<30} | {resp.status}")
                     return False
     except Exception as e:
         print(f"❌ DEAD  : {proxy_url:<30} | {str(e)[:50]}")
