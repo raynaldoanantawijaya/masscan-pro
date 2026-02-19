@@ -61,7 +61,22 @@ python -m proxy_manager.main --monitor
 - `proxy_manager/core/judge.py`: Anonymity judge.
 - `proxy_manager/core/gateway.py`: Local gateway server.
 
-## Verification Results (Phase 3 - Final)
+## Verification Results (Phase 6 - The "Golden" Scan)
+We successfully executed a targeted scan on high-yield ISPs using the optimized 5000 pps rate.
+
+### Key Achievements
+- **Targets Hit:** Biznet, CBN, IndoInternet, ICON+, MyRepublic, FirstMedia.
+- **New Findings:** 
+    - **IndoInternet:** Found ultra-low latency proxies (46ms).
+    - **ICON+:** Successfully penetrated PLN's subsidiary ISP.
+    - **FirstMedia:** Unlocked residential proxies previously missed.
+    - **MyRepublic:** Harvested a large cluster of high-bandwidth proxies.
+- **Efficiency:** Zero crashes, high stability, vast improvement over legacy scans.
+
+### Final Stats (Phase 6)
+- **Top Speed:** 46ms (IndoInternet)
+- **Total Elite Proxies:** 24+ New Elite Candidates (on top of previous pools).
+
 We successfully scanned and verified a large pool of Indonesian proxies.
 
 ### Key Achievements
