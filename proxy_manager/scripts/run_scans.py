@@ -29,9 +29,13 @@ ISP_SCHEDULE = {
     'indihome_lama': (1, 5),   
     'biznet': (18, 23),        
     'myrepublic': (18, 23),    
-    'cbn': (20, 23),           
-    'telkomsel': (0, 5),       
-    'xl': (0, 5),              
+    'cbn': (20, 23),
+    'indointernet': (12, 18),
+    'icon': (12, 18),
+    # 'telkomsel': (0, 5),
+    # 'xl': (0, 5),
+    # 'tri': (0, 5),
+    'isp_kecil': (1, 5),              
     'tri': (0, 5),             
     'isp_kecil': (1, 5),       
 }
@@ -43,9 +47,11 @@ ISP_CONFIGS = {
     'biznet': {'ports': '3128,8291,8080,1080,22'},
     'myrepublic': {'ports': '3000,8000,8080,1080,22'},
     'cbn': {'ports': '3128,8080,1080,3389,5900'},
-    'telkomsel': {'ports': '22,53,443,1194,4500'},
-    'xl': {'ports': '22,1080,8080,80'},
-    'tri': {'ports': '8799,22,443,1194'},
+    'indointernet': {'ports': '8080,80,3128,1080'},
+    'icon': {'ports': '8080,80,3128,1080'},
+    # 'telkomsel': {'ports': '22,53,443,1194,4500'},
+    # 'xl': {'ports': '22,1080,8080,80'},
+    # 'tri': {'ports': '8799,22,443,1194'},
     'isp_kecil': {'ports': '1080,3128,8080'}
 }
 
@@ -158,8 +164,22 @@ def main():
         time.sleep(3600)
 
 if __name__ == "__main__":
-    # If run with --now, just run everything once (for testing)
-    if "--now" in sys.argv:
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--now", action="store_true", help="Run all scheduled scans immediately")
+    parser.add_argument("--targets", help="Comma-separated list of ISPs to scan immediately (e.g., biznet,cbn)")
+    args = parser.parse_args()
+
+    if args.targets:
+        targets = args.targets.split(",")
+        log(f"Running targeted scans: {targets}")
+        for target in targets:
+            target = target.strip()
+            if target in ISP_CONFIGS:
+                run_scan(target)
+            else:
+                 log(f"Target {target} not found in ISP_CONFIGS (Skipping)")
+    elif args.now:
         log("Force running ALL scans immediately...")
         for isp in ISP_SCHEDULE.keys():
             run_scan(isp)
