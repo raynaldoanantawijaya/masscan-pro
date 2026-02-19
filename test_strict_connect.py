@@ -5,24 +5,22 @@ import sys
 
 # Top 25 Proxies from Phase 6 (Using the potentially problematic ones to filter)
 PROXIES = [
-    "http://202.159.35.236:8080",
+    # Phase 6 Winners (Cyberindo & Sify)
     "http://202.158.11.125:80",
-    "http://210.16.67.35:80",
-    "http://210.16.67.36:80",
-    "http://124.158.165.12:80",
-    "http://45.64.60.199:3000",
-    "http://45.64.132.83:3000",
-    # Add newly discovered ones if needed
-    "http://210.18.5.81:80",
     "http://210.18.5.80:80",
-    "http://210.18.5.68:80",
-    "http://210.18.5.87:80",
+    "http://210.18.5.81:80",
     "http://210.18.5.91:80",
-    "http://210.19.151.62:80",
-    "http://210.18.5.93:80",
+    "http://210.18.5.68:80",
     "http://210.18.5.84:80",
-    "http://202.159.123.40:80",
-    "http://124.81.6.123:8080"
+    "http://210.18.5.93:80",
+    "http://210.18.5.87:80",
+
+    # Early Phase Findings (Jalamedia, Lintasarta, Alibaba)
+    "http://150.107.140.238:3128", 
+    "http://202.152.44.18:8081",
+    "http://8.215.15.163:3129",
+    "http://8.215.12.103:8004",
+    "http://149.129.226.9:80"
 ]
 
 TARGET_URL = "https://www.google.com"
