@@ -1,0 +1,13 @@
+#!/bin/bash
+# show_proxies - Quick command to display verified proxies
+# Usage: ./show_proxies
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PYTHON_BIN="$DIR/venv/bin/python3"
+SCRIPT="$DIR/export_proxies.py"
+
+if [ ! -f "$PYTHON_BIN" ]; then
+    PYTHON_BIN="python3" # Fallback if no venv
+fi
+
+sudo $PYTHON_BIN $SCRIPT "$@"

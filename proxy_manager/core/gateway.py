@@ -19,16 +19,63 @@ class ProxyGateway:
         self.app.router.add_route('*', '/{tail:.*}', self.handle_request)
         self.runner = None
         self.site = None
+        self._proxy_pool = []
+        self._pool_lock = asyncio.Lock()
+        self._failed_attempts = {}
+
+    async def _health_monitor(self):
+        """Background task that pings active gateway proxies."""
+        while True:
+            try:
+                # 1. Fill pool if empty
+                async with self._pool_lock:
+                    if not self._proxy_pool:
+                        proxies = await self.storage.get_proxies(limit=10) # Top 10 Elite
+                        self._proxy_pool = [p for p in proxies if p['health_score'] > 50]
+                        logger.info(f"Loaded {len(self._proxy_pool)} proxies into active gateway pool.")
+
+                # 2. Check health of current pool
+                async with self._pool_lock:
+                    pool_copy = list(self._proxy_pool)
+                
+                for proxy in pool_copy:
+                    proxy_url = f"{proxy['protocol']}://{proxy['ip']}:{proxy['port']}"
+                    is_alive = await self._ping_proxy(proxy_url)
+                    
+                    if not is_alive:
+                        self._failed_attempts[proxy_url] = self._failed_attempts.get(proxy_url, 0) + 1
+                        if self._failed_attempts[proxy_url] >= 3:
+                            logger.warning(f"Evicting DEAD proxy from gateway: {proxy_url} (3 consecutive failures)")
+                            async with self._pool_lock:
+                                if proxy in self._proxy_pool:
+                                    self._proxy_pool.remove(proxy)
+                            # Update DB health negatively
+                            await self.storage.update_health(proxy['ip'], proxy['port'], working=False)
+                    else:
+                        self._failed_attempts[proxy_url] = 0 # reset on success
+                
+            except Exception as e:
+                logger.error(f"Gateway health monitor error: {e}")
+            
+            await asyncio.sleep(15) # Check every 15s
+
+    async def _ping_proxy(self, proxy_url):
+        """Strict CONNECT ping to ensure proxy is still routing."""
+        try:
+             from curl_cffi.requests import AsyncSession
+             proxies = {"http": proxy_url, "https": proxy_url}
+             async with AsyncSession(proxies=proxies, impersonate="chrome120", timeout=5) as session:
+                 res = await session.get("https://www.google.com")
+                 return res.status_code == 200
+        except Exception:
+             return False
 
     async def get_best_proxy(self):
-        # Fetch active proxies from DB
-        # Ideally cache this or fetch periodically
-        proxies = await self.storage.get_proxies(limit=50) # Top 50 healthy
-        # Filter for high health?
-        valid = [p for p in proxies if p['health_score'] > 50]
-        if not valid:
-            return None
-        return random.choice(valid)
+        """Get a proxy from the pre-validated healthy pool."""
+        async with self._pool_lock:
+            if not self._proxy_pool:
+                return None
+            return random.choice(self._proxy_pool)
 
     async def handle_request(self, request):
         # This is a simple HTTP forwarder. 
@@ -86,6 +133,9 @@ class ProxyGateway:
         await self.runner.setup()
         self.site = web.TCPSite(self.runner, self.host, self.port)
         await self.site.start()
+        
+        # Start health monitor background task
+        asyncio.create_task(self._health_monitor())
         
         # Keep running
         while True:

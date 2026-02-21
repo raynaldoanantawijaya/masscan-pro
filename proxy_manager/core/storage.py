@@ -47,6 +47,17 @@ class StorageManager:
             if 'city' not in columns:
                 await db.execute("ALTER TABLE proxies ADD COLUMN city TEXT")
 
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS subnet_intel (
+                    subnet_prefix TEXT PRIMARY KEY,
+                    isp TEXT,
+                    total_scanned INTEGER DEFAULT 0,
+                    total_found INTEGER DEFAULT 0,
+                    yield_score REAL DEFAULT 0.0,
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
             await db.commit()
 
     async def save_proxy(self, proxy_data: Dict[str, Any]):
@@ -86,3 +97,45 @@ class StorageManager:
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("DELETE FROM proxies WHERE ip = ? AND port = ?", (ip, port))
             await db.commit()
+
+    async def update_health(self, ip: str, port: int, working: bool):
+        """Updates health score of a proxy based on success/failure."""
+        async with aiosqlite.connect(self.db_path) as db:
+            if working:
+                await db.execute("UPDATE proxies SET health_score = MIN(100, health_score + 10), success_count = success_count + 1 WHERE ip = ? AND port = ?", (ip, port))
+            else:
+                await db.execute("UPDATE proxies SET health_score = MAX(0, health_score - 20), fail_count = fail_count + 1 WHERE ip = ? AND port = ?", (ip, port))
+            await db.commit()
+
+    async def update_subnet_intel(self, ip: str, isp: str, found_count: int = 1):
+        """Records productive subnets to prioritize future scanning."""
+        parts = ip.split('.')
+        if len(parts) == 4:
+            subnet_prefix = f"{parts[0]}.{parts[1]}.{parts[2]}.0/24"
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute("""
+                    INSERT INTO subnet_intel (subnet_prefix, isp, total_found, yield_score, last_updated)
+                    VALUES (?, ?, ?, 1.0, CURRENT_TIMESTAMP)
+                    ON CONFLICT(subnet_prefix) DO UPDATE SET 
+                        total_found = total_found + ?,
+                        yield_score = yield_score + 1.0,
+                        last_updated = CURRENT_TIMESTAMP
+                """, (subnet_prefix, isp, found_count, found_count))
+                await db.commit()
+
+    async def get_top_subnets(self, isp: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
+        """Returns the most productive /24 subnets for targeted deep scans."""
+        query = "SELECT subnet_prefix, yield_score FROM subnet_intel"
+        params = []
+        if isp:
+            query += " WHERE isp LIKE ?"
+            params.append(f"%{isp}%")
+        query += " ORDER BY yield_score DESC LIMIT ?"
+        params.append(limit)
+        
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(query, params) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(row) for row in rows]
+

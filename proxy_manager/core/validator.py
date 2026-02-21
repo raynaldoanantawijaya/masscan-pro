@@ -24,43 +24,53 @@ class ProxyValidator:
         Returns dict with metadata if working, None if failed.
         """
         proxy_url = f"{protocol}://{ip}:{port}"
-        
-        # Use simple judge first for speed/liveness
-        judge_url = self.judges[0] 
         start_time = time.time()
         
         try:
-            # Configure connector based on protocol
-            connector = ProxyConnector.from_url(proxy_url)
+            from curl_cffi.requests import AsyncSession
+            proxies = {"http": proxy_url, "https": proxy_url}
             
-            async with aiohttp.ClientSession(connector=connector, timeout=self.timeout) as session:
-                async with session.get(judge_url) as response:
-                    if response.status == 200:
-                        # Success
-                        latency = int((time.time() - start_time) * 1000)
-                        
-                        # Anonymity Check (Advanced)
-                        anonymity = await self.judge.check_anonymity(session, proxy_url)
-                        
-                        # GeoIP Lookup
-                        geo_data = await self.geoip.lookup(ip)
+            # Strict CONNECT test via Chrome 120 TLS emulation
+            async with AsyncSession(proxies=proxies, impersonate="chrome120", timeout=self.timeout.total) as session:
+                response = await session.get("https://www.google.com")
+                
+                if response.status_code == 200:
+                    latency = int((time.time() - start_time) * 1000)
+                    
+                    # Anonymity Check using curl_cffi
+                    anonymity = "unknown"
+                    try:
+                        anon_resp = await session.get("https://httpbin.org/get", timeout=5)
+                        if anon_resp.status_code == 200:
+                            data = anon_resp.json()
+                            headers = data.get("headers", {})
+                            proxy_headers = ["Via", "X-Forwarded-For", "X-Forwarded", "Forwarded-For", "Forwarded", "Client-Ip", "X-Real-Ip"]
+                            detected_headers = [h for h in proxy_headers if h in headers or h.lower() in headers]
+                            if detected_headers:
+                                anonymity = "anonymous"
+                            else:
+                                anonymity = "elite"
+                    except Exception:
+                        pass
+                    
+                    geo_data = await self.geoip.lookup(ip)
 
-                        return {
-                            "ip": ip,
-                            "port": port,
-                            "protocol": protocol,
-                            "anonymity": anonymity,
-                            "country": geo_data.get("country", "XX"),
-                            "region": "", # GeoIP might parse this 
-                            "city": "",
-                            "isp": geo_data.get("isp", "Unknown"),
-                            "response_time_ms": latency,
-                            "health_score": 100,
-                            "success_count": 1,
-                            "fail_count": 0
-                        }
+                    return {
+                        "ip": ip,
+                        "port": port,
+                        "protocol": protocol,
+                        "anonymity": anonymity,
+                        "country": geo_data.get("country", "XX"),
+                        "region": "", 
+                        "city": "",
+                        "isp": geo_data.get("isp", "Unknown"),
+                        "response_time_ms": latency,
+                        "health_score": 100,
+                        "success_count": 1,
+                        "fail_count": 0
+                    }
         except Exception as e:
-            # logger.debug(f"Proxy check failed for {proxy_url}: {e}")
+            # logger.debug(f"Strict Proxy check failed for {proxy_url}: {e}")
             pass
         
         return None
