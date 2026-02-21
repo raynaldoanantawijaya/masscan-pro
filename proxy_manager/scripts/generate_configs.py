@@ -1,4 +1,6 @@
 import os
+import argparse
+import asyncio
 from datetime import datetime
 
 # Define project base paths
@@ -61,7 +63,7 @@ ISPS = {
     }
 }
 
-def generate_configs():
+def generate_configs(use_intel=False):
     print(f"Generating configurations in {CONFIGS_DIR}...")
     
     for isp, data in ISPS.items():
@@ -77,10 +79,12 @@ def generate_configs():
             
         ranges_str = ','.join(ranges)
         
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+        
         # Create Masscan Config
         config_content = f"""rate = {data['rate']}
 output-format = list
-output-filename = {RESULTS_DIR}/{isp}_$(date +%Y%m%d_%H%M).txt
+output-filename = {RESULTS_DIR}/{isp}_{timestamp}.txt
 ports = {data['ports']}
 range = {ranges_str}
 """
@@ -88,6 +92,48 @@ range = {ranges_str}
         with open(config_path, "w") as f:
             f.write(config_content)
         print(f"✅ Generated config for {isp}")
+        
+    if use_intel:
+        if os.name == 'nt': # fallback for asyncio on windows
+             asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        asyncio.run(generate_intel_configs())
+
+async def generate_intel_configs():
+    try:
+        from proxy_manager.core.storage import StorageManager
+        import sys
+        if sys.platform == 'win32':
+             asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        
+        storage = StorageManager()
+        top_subnets = await storage.get_top_subnets(limit=50) # top 50 /24s
+        
+        if not top_subnets:
+            print("ℹ️ No subnet intel found yet. Run standard scans to gather data first.")
+            return
+
+        print(f"🧠 Generating Smart Intel Config for {len(top_subnets)} high-yield subnets...")
+        ranges = [s['subnet_prefix'] for s in top_subnets]
+        ranges_str = ','.join(ranges)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+        
+        # Super aggressive config for known good areas
+        config_content = f"""rate = 15000
+output-format = list
+output-filename = {RESULTS_DIR}/intel_premium_{timestamp}.txt
+ports = 8080,3128,80,1080,8888,9090,8118,3129
+range = {ranges_str}
+"""
+        config_path = os.path.join(CONFIGS_DIR, "intel_premium.conf")
+        with open(config_path, "w") as f:
+            f.write(config_content)
+        print("✅ Generated intel_premium.conf (Hyper-Targeted Scan)")
+    except Exception as e:
+        print(f"Error generating intel config: {e}")
 
 if __name__ == "__main__":
-    generate_configs()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--intel", action="store_true", help="Generate smart config based on past yields")
+    args = parser.parse_args()
+    
+    generate_configs(args.intel)
