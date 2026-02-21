@@ -30,17 +30,41 @@ class ProxyValidator:
             from curl_cffi.requests import AsyncSession
             proxies = {"http": proxy_url, "https": proxy_url}
             
-            # Strict CONNECT test via Chrome 120 TLS emulation
-            async with AsyncSession(proxies=proxies, impersonate="chrome120", timeout=self.timeout.total) as session:
-                response = await session.get("https://www.google.com")
+            # Increase timeout for TLS emulation. Indonesian proxies frequently need 5-8s for initial handshake
+            check_timeout = max(self.timeout.total, 8.0) 
+            
+            async with AsyncSession(proxies=proxies, impersonate="chrome120", timeout=check_timeout) as session:
+                is_valid = False
+                latency = 0
                 
-                if response.status_code == 200:
-                    latency = int((time.time() - start_time) * 1000)
+                # Pass 1: Strict HTTPS CONNECT to a major site
+                try:
+                    t1 = time.time()
+                    response = await session.get("https://www.google.com")
+                    if response.status_code in [200, 301, 302]: # Allow redirects
+                        latency = int((time.time() - t1) * 1000)
+                        is_valid = True
+                except Exception:
+                    pass
+                
+                # Pass 2: Fallback to HTTP if HTTPS failed (some proxies block HTTPS or Google)
+                if not is_valid:
+                    try:
+                        t2 = time.time()
+                        # Use a different endpoint for HTTP pass to avoid cached failure modes
+                        http_resp = await session.get("http://httpbin.org/get")
+                        if http_resp.status_code == 200:
+                            latency = int((time.time() - t2) * 1000)
+                            is_valid = True
+                    except Exception:
+                        pass
+
+                if is_valid:
                     
                     # Anonymity Check using curl_cffi
                     anonymity = "unknown"
                     try:
-                        anon_resp = await session.get("https://httpbin.org/get", timeout=5)
+                        anon_resp = await session.get("http://httpbin.org/get", timeout=5)
                         if anon_resp.status_code == 200:
                             data = anon_resp.json()
                             headers = data.get("headers", {})
