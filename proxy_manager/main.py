@@ -111,6 +111,7 @@ def main():
     parser.add_argument("--import-file", type=str, help="Import IP:Port list from file and validate")
     parser.add_argument("--monitor", action="store_true", help="Start background lifecycle manager (infinite loop)")
     parser.add_argument("--serve", action="store_true", help="Start local proxy gateway (localhost:8888)")
+    parser.add_argument("--reverify", action="store_true", help="One-shot re-verification of all saved proxies")
     parser.add_argument("--targets", type=str, help="Comma separated list of IPs or CIDRs, or path to file")
     parser.add_argument("--ports", type=str, help="Comma separated list of ports (overrides config)")
     
@@ -132,6 +133,16 @@ def main():
              asyncio.run(lifecycle.start_monitor())
         except KeyboardInterrupt:
              logger.info("Monitor stopped.")
+        return
+
+    if args.reverify:
+        logger.info("Starting One-Shot Re-verification of all proxies...")
+        lifecycle = LifecycleManager()
+        async def run_reverify():
+            await lifecycle.reverify_proxies()
+            await lifecycle.cleanup_dead_proxies(threshold=40)
+        asyncio.run(run_reverify())
+        logger.info("Re-verification complete.")
         return
 
     if args.scan:

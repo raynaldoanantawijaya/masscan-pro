@@ -1,0 +1,15 @@
+#!/bin/bash
+# reverify_proxies - Refresh and prune saved proxies
+# Usage: ./reverify_proxies
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PYTHON_BIN="$DIR/venv/bin/python3"
+SCRIPT="$DIR/proxy_manager/main.py"
+
+if [ ! -f "$PYTHON_BIN" ]; then
+    PYTHON_BIN="python3" # Fallback if no venv
+fi
+
+echo "🔄 Starting Re-verification Process..."
+sudo $PYTHON_BIN -m proxy_manager.main --reverify
+echo "✅ Done! You can run ./show_proxies to see the cleaned list."
