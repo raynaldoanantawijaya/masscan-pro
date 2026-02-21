@@ -140,7 +140,9 @@ def main():
         lifecycle = LifecycleManager()
         async def run_reverify():
             await lifecycle.reverify_proxies()
-            await lifecycle.cleanup_dead_proxies(threshold=40)
+            # Stricter cleanup threshold for one-shot manual runs. 
+            # If a proxy drops from 100 to 80 on a manual sweep, purge it.
+            await lifecycle.cleanup_dead_proxies(threshold=90)
         asyncio.run(run_reverify())
         logger.info("Re-verification complete.")
         return

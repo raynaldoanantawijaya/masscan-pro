@@ -43,9 +43,15 @@ class LifecycleManager:
         
         logger.info(f"Re-verifying {len(proxies)} proxies...")
         
+        sem = asyncio.Semaphore(50)  # Prevent network exhaustion / false timeouts
+        
+        async def sem_reverify_single(proxy):
+            async with sem:
+                await self._reverify_single(proxy)
+                
         coros = []
         for proxy in proxies:
-            coros.append(self._reverify_single(proxy))
+            coros.append(sem_reverify_single(proxy))
         
         if coros:
             await asyncio.gather(*coros)
