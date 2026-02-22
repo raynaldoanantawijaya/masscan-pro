@@ -48,14 +48,17 @@ class ProxyValidator:
                     pass
                 
                 # Pass 2: Fallback to HTTP if HTTPS failed (some proxies block HTTPS or Google)
+                # STRICT REQUIREMENT: Response must be JSON. Router login pages return HTML 200 OK.
                 if not is_valid:
                     try:
                         t2 = time.time()
-                        # Use a different endpoint for HTTP pass to avoid cached failure modes
                         http_resp = await session.get("http://httpbin.org/get")
                         if http_resp.status_code == 200:
-                            latency = int((time.time() - t2) * 1000)
-                            is_valid = True
+                            # Verify it's actually httpbin by parsing JSON
+                            data = http_resp.json()
+                            if "url" in data and "httpbin.org" in data["url"]:
+                                latency = int((time.time() - t2) * 1000)
+                                is_valid = True
                     except Exception:
                         pass
 
