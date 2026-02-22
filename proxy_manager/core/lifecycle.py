@@ -64,7 +64,7 @@ class LifecycleManager:
         # Check current health
         current_health = proxy['health_score']
         
-        result = await self.validator.check_proxy(ip, port, protocol)
+        result = await self.validator.check_proxy(ip, port, protocol, skip_geoip=True)
         
         if result:
             # It's alive!
@@ -73,6 +73,12 @@ class LifecycleManager:
             result['health_score'] = new_health
             result['success_count'] = proxy['success_count'] + 1
             result['fail_count'] = proxy['fail_count']
+            
+            # Restore GeoIP data from original proxy record
+            result['country'] = proxy['country']
+            result['isp'] = proxy.get('isp', 'Unknown')
+            result['region'] = proxy.get('region', '')
+            result['city'] = proxy.get('city', '')
             
             # Update DB
             await self.storage.save_proxy(result)

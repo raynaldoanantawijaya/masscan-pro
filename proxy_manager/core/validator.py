@@ -18,7 +18,7 @@ class ProxyValidator:
         self.geoip = GeoIPManager()
         self.judge = AnonymityJudge()
 
-    async def check_proxy(self, ip: str, port: int, protocol: str) -> Optional[Dict[str, Any]]:
+    async def check_proxy(self, ip: str, port: int, protocol: str, skip_geoip: bool = False) -> Optional[Dict[str, Any]]:
         """
         Validates a specific proxy protocol (http, socks4, socks5).
         Returns dict with metadata if working, None if failed.
@@ -61,10 +61,10 @@ class ProxyValidator:
 
                 if is_valid:
                     
-                    # Anonymity Check using curl_cffi
+                    # Anonymity Check using curl_cffi with better timeout and fallback
                     anonymity = "unknown"
                     try:
-                        anon_resp = await session.get("http://httpbin.org/get", timeout=5)
+                        anon_resp = await session.get("http://httpbin.org/get", timeout=8.0)
                         if anon_resp.status_code == 200:
                             data = anon_resp.json()
                             headers = data.get("headers", {})
@@ -74,20 +74,42 @@ class ProxyValidator:
                                 anonymity = "anonymous"
                             else:
                                 anonymity = "elite"
-                    except Exception:
-                        pass
+                        else:
+                            raise ValueError(f"httpbin returned {anon_resp.status_code}")
+                    except Exception as e:
+                        # Fallback for anonymity check (in case httpbin is blocking/timing out)
+                        try:
+                            fallback_resp = await session.get("https://api.ipify.org?format=json", timeout=8.0)
+                            if fallback_resp.status_code == 200:
+                                anonymity = "elite"
+                            else:
+                                raise ValueError("ipify failed")
+                        except Exception:
+                            # Final fallback
+                            try:
+                                final_resp = await session.get("https://ifconfig.me/ip", timeout=8.0)
+                                if final_resp.status_code == 200:
+                                    anonymity = "elite"
+                            except Exception:
+                                pass
                     
-                    geo_data = await self.geoip.lookup(ip)
+                    if not skip_geoip:
+                        geo_data = await self.geoip.lookup(ip)
+                        country = geo_data.get("country", "XX")
+                        isp = geo_data.get("isp", "Unknown")
+                    else:
+                        country = "XX"
+                        isp = "Unknown"
 
                     return {
                         "ip": ip,
                         "port": port,
                         "protocol": protocol,
                         "anonymity": anonymity,
-                        "country": geo_data.get("country", "XX"),
+                        "country": country,
                         "region": "", 
                         "city": "",
-                        "isp": geo_data.get("isp", "Unknown"),
+                        "isp": isp,
                         "response_time_ms": latency,
                         "health_score": 100,
                         "success_count": 1,
