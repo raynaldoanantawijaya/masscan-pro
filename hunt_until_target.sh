@@ -27,14 +27,9 @@ $PYTHON_BIN $DIR/proxy_manager/scripts/generate_configs.py > /dev/null
 
 count_elite() {
     $PYTHON_BIN -c "import sqlite3; \
-try: \
-  conn = sqlite3.connect('$DB_PATH'); \
-  c = conn.cursor(); \
-  c.execute(\"SELECT COUNT(*) FROM proxies WHERE anonymity IN ('elite', 'anonymous') AND status = 'active'\"); \
-  print(c.fetchone()[0]); \
-  conn.close(); \
-except Exception: \
-  print(0)"
+conn = sqlite3.connect('$DB_PATH'); \
+print(conn.execute(\"SELECT COUNT(*) FROM proxies WHERE anonymity IN ('elite', 'anonymous') AND status = 'active'\").fetchone()[0]); \
+conn.close()" 2>/dev/null || echo 0
 }
 
 CURRENT_COUNT=$(count_elite)
