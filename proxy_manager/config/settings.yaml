@@ -9,11 +9,11 @@ scanning:
   default_ports: "80,8080,3128,8000,1080,8888,9999"
 
 verification:
-  timeout: 5
+  timeout: 3
   judges:
     - "http://httpbin.org/ip"
     - "https://api.ipify.org?format=json"
-  max_concurrent: 100
+  max_concurrent: 300
 
 rotation:
   strategy: "random" # or "round_robin", "sticky"
